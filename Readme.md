@@ -1,7 +1,7 @@
 # Личный проект «Кэндишоп» [![Build status][travis-image]][travis-url]
 
 * Студент: [Константин Суриков](https://up.htmlacademy.ru/javascript/15/user/598165).
-* Наставник: `Неизвестно`.
+* Наставник: [Без наставника](https://up.htmlacademy.ru/javascript/15).
 
 ---
 
