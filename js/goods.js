@@ -272,7 +272,7 @@ var removeCardFromOrder = function (card) {
 
   applyCatalogCardStyle(catalogCard, catalogItem.amount);
 
-  for (i = 0; i < orders.length; i++) {
+  for (var i = 0; i < orders.length; i++) {
     if (orders[i].name === cardTitle) {
       orders.splice(i, 1);
       break;
@@ -394,18 +394,6 @@ var catalogCardTemplate = document.querySelector('#card').content.querySelector(
 var orderCardTemplate = document.querySelector('#card-order').content.querySelector('.goods_card');
 
 
-var catalogSidebar = document.querySelector('.catalog__sidebar');
-
-var sidebarState = {};
-
-var resetToDefaultSibarState = function () {
-  sidebarState.price = {};
-  sidebarState.price.min = 0;
-  sidebarState.price.max = 300;
-};
-
-resetToDefaultSibarState();
-
 var catalogCards = document.querySelector('.catalog__cards');
 
 var clearCatalog = function () {
@@ -418,7 +406,7 @@ var showCatalog = function () {
   clearCatalog();
   var goodsFiltered = [];
 
-  for (i = 0; i < goods.length; i++) {
+  for (var i = 0; i < goods.length; i++) {
     goodsFiltered.push(goods[i]);
   }
 
@@ -427,26 +415,67 @@ var showCatalog = function () {
 };
 
 
-var sidebarRangeButtons = catalogSidebar.querySelectorAll('.range__btn');
-for (var i = 0; i < sidebarRangeButtons.length; i++) {
-  sidebarRangeButtons[i].addEventListener('mouseup', function () {
-    sidebarState.price.min = 60;
-    sidebarState.price.max = 230;
-    showCatalog();
-  });
-}
+var MIN_PRICE = 15;
+var MAX_PRICE = 275;
+var RANGE_LENGTH = 245;
+var BUTTON_WIDTH = 10;
 
-var resetSidebar = function () {
+var catalogSidebar = document.querySelector('.catalog__sidebar');
+var rangePriceMin = catalogSidebar.querySelector('.range__price--min');
+var rangePriceMax = catalogSidebar.querySelector('.range__price--max');
+var rangeBtnLeft = catalogSidebar.querySelector('.range__btn--left');
+var rangeBtnRight = catalogSidebar.querySelector('.range__btn--right');
+var rangeFillLine = catalogSidebar.querySelector('.range__fill-line');
 
-  resetToDefaultSibarState();
+var applyRangeBtnStyle = function () {
+  var priceRange = MAX_PRICE - MIN_PRICE;
+  var leftX = rangeBtnLeft.offsetLeft + BUTTON_WIDTH / 2;
+  var rightX = rangeBtnRight.offsetLeft + BUTTON_WIDTH / 2;
 
-  var sidebarFoodTypes = catalogSidebar.querySelectorAll('.input-btn__input--checkbox[name="food-type"]');
-
-  for (var j = 0; j < sidebarFoodTypes.length; j++) {
-    sidebarFoodTypes[j].checked = true;
-  }
-  catalogSidebar.querySelector('.input-btn__input--radio[value="popular"]').checked = true;
+  rangeFillLine.style.left = rangeBtnLeft.offsetLeft + 'px';
+  rangeFillLine.style.right = RANGE_LENGTH - rangeBtnRight.offsetLeft + 'px';
+  rangePriceMin.textContent = Math.round(priceRange / RANGE_LENGTH * leftX) + MIN_PRICE;
+  rangePriceMax.textContent = Math.round(priceRange / RANGE_LENGTH * rightX) + MIN_PRICE;
 };
+
+applyRangeBtnStyle();
+
+var moveRangeBtn = function (evt, min, max) {
+  evt.preventDefault();
+
+  var startCoordinate = evt.clientX;
+
+  var mouseMoveHandler = function (moveEvt) {
+    var shift = startCoordinate - moveEvt.clientX;
+
+    startCoordinate = moveEvt.clientX;
+    var x = evt.target.offsetLeft - shift;
+    if (x <= min) {
+      x = min;
+    } else if (x >= max) {
+      x = max;
+    }
+    evt.target.style.left = x + 'px';
+    applyRangeBtnStyle();
+  };
+
+  var mouseUpHandler = function (upEvt) {
+    upEvt.preventDefault();
+    document.removeEventListener('mousemove', mouseMoveHandler);
+    document.removeEventListener('mouseup', mouseUpHandler);
+  };
+
+  document.addEventListener('mousemove', mouseMoveHandler);
+  document.addEventListener('mouseup', mouseUpHandler);
+};
+
+rangeBtnLeft.addEventListener('mousedown', function (evt) {
+  moveRangeBtn(evt, -BUTTON_WIDTH / 2, rangeBtnRight.offsetLeft);
+});
+rangeBtnRight.addEventListener('mousedown', function (evt) {
+  moveRangeBtn(evt, rangeBtnLeft.offsetLeft, RANGE_LENGTH - BUTTON_WIDTH / 2);
+});
+
 
 var toggleFormInputs = function (tab) {
   var inputs = tab.querySelectorAll('input');
@@ -457,9 +486,6 @@ var toggleFormInputs = function (tab) {
   inputs.forEach(function (it) {
     it.disabled = !it.disabled;
   });
-  // for (i = 0; i < inputs.length; i++) {
-  //   inputs[i].disabled = !inputs[i].disabled;
-  // }
 };
 
 var toggleTabs = function (evt, tabs) {
@@ -502,13 +528,8 @@ paymentToggle.addEventListener('click', function (evt) {
 });
 
 
-catalogSidebar.querySelector('.catalog__submit').addEventListener('click', function (evt) {
-
-  evt.preventDefault();
-  resetSidebar();
-});
-
 showCatalog();
+
 
 var paymentCardNumberInput = document.querySelector('#payment__card-number');
 
@@ -517,7 +538,6 @@ var luhnAlgorithm = function (value) {
   var nDigit = 0;
   var bEven = false;
   // value = value.replace(/\D/g, '');
-
   for (var n = value.length - 1; n >= 0; n--) {
     var cDigit = value.charAt(n);
     nDigit = parseInt(cDigit, 10);
@@ -591,12 +611,11 @@ var deliverStoreDescriptons = {
 var selectStore = function (evt) {
   if (evt.target.tagName === 'LABEL') {
     var mapFileName = evt.target.getAttribute('for').split('-')[1];
-    deliverStoreMap.src = '/img/map/' + mapFileName + '.jpg';
+    deliverStoreMap.src = 'img/map/' + mapFileName + '.jpg';
     deliverStoreDescribe.textContent = deliverStoreDescriptons[mapFileName];
   }
 };
 
 deliverStoreList.addEventListener('click', function (evt) {
-  // evt.preventDefault();
   selectStore(evt);
 });
