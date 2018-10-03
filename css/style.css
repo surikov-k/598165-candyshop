@@ -1266,6 +1266,7 @@ body {
   padding: 0;
   font-size: 0;
   border-radius: 50%;
+  cursor: pointer;
 }
 .range__btn--left {
   left: 15%;
