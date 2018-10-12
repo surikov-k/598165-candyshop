@@ -1,56 +1,102 @@
 'use strict';
 (function () {
 
-  var toggleFormInputs = function (tab) {
-    var inputs = tab.querySelectorAll('input');
-    var textarea = tab.querySelector('textarea');
-    if (textarea) {
-      textarea.disabled = !textarea.disabled;
-    }
-    inputs.forEach(function (it) {
+  var buyForm = document.querySelector('form[method=post]');
+  var paymentTabs = [];
+  var deliverTabs = [];
+
+  var paymentSection = document.querySelector('.payment');
+  var paymentToggle = paymentSection.querySelector('.payment__method');
+  paymentTabs.push(paymentSection.querySelector('.payment__card-wrap'));
+  paymentTabs.push(paymentSection.querySelector('.payment__cash-wrap'));
+
+  var deliverSection = document.querySelector('.deliver');
+  var deliverToggle = deliverSection.querySelector('.deliver__toggle');
+  deliverTabs.push(deliverSection.querySelector('.deliver__store'));
+  deliverTabs.push(deliverSection.querySelector('.deliver__courier'));
+
+  var selectInputs = function (element) {
+    var elementInputs = [];
+    var htmlInputs = ['input', 'textarea', 'button'];
+
+    htmlInputs.forEach(function (it) {
+      if (element.querySelectorAll(it)) {
+        element.querySelectorAll(it).forEach(function (jt) {
+          elementInputs.push(jt);
+        });
+      }
+    });
+    return elementInputs;
+  };
+
+  var disabelElementInputs = function (element) {
+    var formInputs = selectInputs(element);
+    formInputs.forEach(function (it) {
+      it.disabled = true;
+    });
+  };
+  var disableBuyForm = function () {
+    disabelElementInputs(buyForm);
+  };
+
+  disableBuyForm();
+
+  var toggleElementInputs = function (element) {
+    selectInputs(element).forEach(function (it) {
       it.disabled = !it.disabled;
     });
   };
 
+  var enableBuyForm = function () {
+    toggleElementInputs(document.querySelector('.contact-data__inputs'));
+
+    paymentSection.querySelector('input[value=card]').checked = true;
+    toggleElementInputs(paymentSection.querySelector('.payment__method'));
+    paymentSection.querySelector('.payment__card-wrap').classList.remove('visually-hidden');
+    paymentSection.querySelector('.payment__cash-wrap').classList.add('visually-hidden');
+    toggleElementInputs(paymentSection.querySelector('.payment__card-wrap'));
+
+    deliverSection.querySelector('input[value=store]').checked = true;
+    toggleElementInputs(deliverSection.querySelector('.deliver__toggle'));
+    deliverSection.querySelector('.deliver__store').classList.remove('visually-hidden');
+    deliverSection.querySelector('.deliver__courier').classList.add('visually-hidden');
+    toggleElementInputs(deliverSection.querySelector('.deliver__store'));
+
+    buyForm.querySelector('.buy__submit-btn').disabled = false;
+
+    paymentToggle.addEventListener('click', function (evt) {
+      evt.preventDefault();
+      toggleTabs(evt, paymentTabs);
+    });
+
+    deliverToggle.addEventListener('click', function (evt) {
+      evt.preventDefault();
+      toggleTabs(evt, deliverTabs);
+    });
+  };
+
+
   var toggleTabs = function (evt, tabs) {
     if (evt.target.tagName === 'LABEL') {
       var targetRadioBtn = document.querySelector('#' + evt.target.getAttribute('for'));
-      if (!targetRadioBtn.checked) {
+      if (!targetRadioBtn.checked && !targetRadioBtn.disabled) {
         tabs.forEach(function (it) {
           it.classList.toggle('visually-hidden');
-          toggleFormInputs(it);
+          toggleElementInputs(it);
         });
         targetRadioBtn.checked = true;
       }
     }
   };
 
-  var deliverSection = document.querySelector('.deliver');
-  var deliverToggle = deliverSection.querySelector('.deliver__toggle');
-  var deliverTabs = [];
-  deliverTabs.push(deliverSection.querySelector('.deliver__store'));
-  deliverTabs.push(deliverSection.querySelector('.deliver__courier'));
-
-  deliverToggle.addEventListener('click', function (evt) {
-    evt.preventDefault();
-    toggleTabs(evt, deliverTabs);
-  });
-
-
-  var paymentSection = document.querySelector('.payment');
-  var paymentToggle = paymentSection.querySelector('.payment__method');
-  var paymentTabs = [];
-  paymentTabs.push(paymentSection.querySelector('.payment__card-wrap'));
-  paymentTabs.push(paymentSection.querySelector('.payment__cash-wrap'));
-
-  toggleFormInputs(deliverSection.querySelector('.deliver__courier'));
-
-  paymentToggle.addEventListener('click', function (evt) {
-    evt.preventDefault();
-    toggleTabs(evt, paymentTabs);
-  });
 
   var paymentCardNumberInput = document.querySelector('#payment__card-number');
+  // 4916479015929426
+  paymentCardNumberInput.addEventListener('input', function (evt) {
+    checkPaymentCardValidity(evt);
+  });
+
+  var paymentCardInputs = document.querySelector('.payment__inputs');
 
   var luhnAlgorithm = function (value) {
     var nCheck = 0;
@@ -68,25 +114,19 @@
       nCheck += nDigit;
       bEven = !bEven;
     }
-
     return (nCheck % 10) === 0;
   };
 
   var checkPaymentCardValidity = function () {
     if (paymentCardNumberInput.validity.patternMismatch) {
-      paymentCardNumberInput.setCustomValidity('Номер платежной карты состоит из 16 цифр');
+      paymentCardNumberInput.setCustomValidity('Пожалуйста, введите 16 цифр вашей платежной карты');
     } else if (!luhnAlgorithm(paymentCardNumberInput.value)) {
       paymentCardNumberInput.setCustomValidity('Неправильный номер платежной карты');
     } else {
       paymentCardNumberInput.setCustomValidity('');
     }
   };
-  // 4916479015929426
-  paymentCardNumberInput.addEventListener('input', function (evt) {
-    checkPaymentCardValidity(evt);
-  });
 
-  var paymentCardInputs = document.querySelector('.payment__inputs');
 
   var checkCardStatus = function () {
     var paymentCardStatus = paymentCardInputs.querySelector('.payment__card-status');
@@ -124,19 +164,44 @@
     'prosvesheniya': 'Проспект Просвещения',
     'frunzenskaya': 'Фрунзенская',
     'chernishevskaya': 'Чернышевская',
-    'tehinstitute': 'Технологический институт'
   };
 
   var selectStore = function (evt) {
     if (evt.target.tagName === 'LABEL') {
-      var mapFileName = evt.target.getAttribute('for').split('-')[1];
-      deliverStoreMap.src = 'img/map/' + mapFileName + '.jpg';
-      deliverStoreDescribe.textContent = deliverStoreDescriptons[mapFileName];
+      var labelFor = evt.target.getAttribute('for');
+      var correspondedButton = deliverStoreList.querySelector('#' + labelFor);
+      if (!correspondedButton.disabled) {
+        var mapFileName = evt.target.getAttribute('for').split('-')[1];
+        deliverStoreMap.src = 'img/map/' + mapFileName + '.jpg';
+        deliverStoreDescribe.textContent = deliverStoreDescriptons[mapFileName];
+      }
     }
   };
 
   deliverStoreList.addEventListener('click', function (evt) {
+    evt.preventDefault();
     selectStore(evt);
   });
+
+
+  buyForm.addEventListener('submit', function (evt) {
+    window.backend.send(new FormData(buyForm),
+        function () {
+          window.modal.showSuccessModal();
+          window.catalog.emptyOrder();
+          buyForm.reset();
+          enableBuyForm();
+          disableBuyForm();
+        },
+        function (error) {
+          window.modal.showErrorModal(error);
+        });
+    evt.preventDefault();
+  });
+
+  window.order = {
+    disableBuyForm: disableBuyForm,
+    enableBuyForm: enableBuyForm
+  };
 
 })();
