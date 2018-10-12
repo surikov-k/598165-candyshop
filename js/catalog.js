@@ -2,6 +2,18 @@
 (function () {
 
   var orders = [];
+  var goods = [];
+  window.backend.load(
+      function (data) {
+        for (var i = 0; i < data.length; i++) {
+          goods.push(data[i]);
+          goods[i].picture = 'img/cards/' + data[i].picture;
+          showCatalog();
+        }
+      },
+      function (error) {
+        window.modal.showErrorModal(error);
+      });
 
   var orderCardsWrapper = document.querySelector('.goods__cards');
 
@@ -111,7 +123,7 @@
   var changeOrderCount = function (card, increment) {
 
     var cardTitle = card.querySelector('.card-order__title').textContent;
-    var catalogItem = getObjByName(window.goods, cardTitle);
+    var catalogItem = getObjByName(goods, cardTitle);
     var orderItem = getObjByName(orders, cardTitle);
     var catalogCard = getCatalogCardByName(cardTitle);
 
@@ -125,32 +137,14 @@
     }
     card.querySelector('.card-order__count').value = orderItem.orderedAmount;
     applyCatalogCardStyle(catalogCard, catalogItem.amount - orderItem.orderedAmount);
-    updateBasket();
+    window.basket.updateBasket();
   };
 
-  var basket = document.querySelector('.main-header__basket');
-
-  var updateBasket = function () {
-    if (orders.length) {
-
-      var basketTotalAmount = orders.length;
-
-      var basketTotalPrice = orders
-        .map(function (it) {
-          return it.price * it.orderedAmount;
-        }).reduce(function (it, total) {
-          return total + it;
-        });
-      basket.textContent = 'В корзине ' + basketTotalAmount + ' товара на сумму ' + basketTotalPrice + ' ₽';
-    } else {
-      basket.textContent = 'В корзине ничего нет';
-    }
-  };
 
   var removeCardFromOrder = function (card) {
 
     var cardTitle = card.querySelector('.card-order__title').textContent;
-    var catalogItem = getObjByName(window.goods, cardTitle);
+    var catalogItem = getObjByName(goods, cardTitle);
     var catalogCard = getCatalogCardByName(cardTitle);
 
     applyCatalogCardStyle(catalogCard, catalogItem.amount);
@@ -166,9 +160,21 @@
 
     if (orders.length === 0) {
       document.querySelector('.goods__card-empty').classList.remove('visually-hidden');
+      window.order.disableBuyForm();
     }
-    updateBasket();
+    window.basket.updateBasket();
   };
+
+  var emptyOrder = function () {
+    var goodsCards = document.querySelector('.goods__cards');
+    var cardsInOrder = orderCardsWrapper.querySelectorAll('.card-order');
+    cardsInOrder.forEach(function (it) {
+      goodsCards.removeChild(it);
+    });
+    orders.length = 0;
+    window.basket.updateBasket();
+  };
+
 
   var getCatalogCardByName = function (name) {
     var catalogCards = document.querySelectorAll('.catalog__card');
@@ -200,7 +206,7 @@
   var addCardToOrder = function (card) {
 
     var cardTitle = card.querySelector('.card__title').textContent;
-    var catalogItem = getObjByName(window.goods, cardTitle);
+    var catalogItem = getObjByName(goods, cardTitle);
     var orderItem = getObjByName(orders, cardTitle);
 
     if (orderItem !== undefined) {
@@ -218,9 +224,11 @@
       orderCardsWrapper.querySelector('.goods__card-empty').classList.add('visually-hidden');
       orderCardsWrapper.appendChild(createOrderCard(orderItem));
 
+      window.order.enableBuyForm();
+
     }
     applyCatalogCardStyle(card, catalogItem.amount - orderItem.orderedAmount);
-    updateBasket();
+    window.basket.updateBasket();
 
   };
 
@@ -268,13 +276,17 @@
     clearCatalog();
     var goodsFiltered = [];
 
-    for (var i = 0; i < window.goods.length; i++) {
-      goodsFiltered.push(window.goods[i]);
+    for (var i = 0; i < goods.length; i++) {
+      goodsFiltered.push(goods[i]);
     }
 
     var catalogCardsFragment = addCards(createCatalogCard, goodsFiltered);
     catalogCards.appendChild(catalogCardsFragment);
   };
 
-  showCatalog();
+
+  window.catalog = {
+    orders: orders,
+    emptyOrder: emptyOrder
+  };
 })();
