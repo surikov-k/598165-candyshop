@@ -63,7 +63,7 @@
       filterStates['Зефир'] |
       filterStates['Сначала популярные'];
 
-  console.log(window.catalog.goods);
+  // console.log(window.catalog.goods);
 
   var resetCounters = function () {
     var counters = catalogSidebar.querySelectorAll('.input-btn__item-count');
