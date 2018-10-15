@@ -175,6 +175,7 @@
       goodsCards.removeChild(it);
     });
     orders.length = 0;
+    document.querySelector('.goods__card-empty').classList.remove('visually-hidden');
     window.basket.updateBasket();
   };
 
