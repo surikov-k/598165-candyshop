@@ -2,8 +2,8 @@
 
 (function () {
 
-  var minPrice = 15;
-  var maxPrice = 275;
+  var minPrice;
+  var maxPrice;
   var RANGE_LENGTH = 245;
   var BUTTON_WIDTH = 10;
 
@@ -14,8 +14,13 @@
   var rangeBtnRight = catalogSidebar.querySelector('.range__btn--right');
   var rangeFillLine = catalogSidebar.querySelector('.range__fill-line');
 
-  var currentMinPrice = parseInt(rangePriceMin.textContent, 10);
-  var currentMaxPrice = parseInt(rangePriceMax.textContent, 10);
+  var foodTypeCheckboxes = catalogSidebar.querySelectorAll('input[name="food-type"]~label');
+  var foodPropertyCheckboxes = catalogSidebar.querySelectorAll('input[name="food-property"]~label');
+  var onlyFavoritesCheckbox = catalogSidebar.querySelector('label[for="filter-favorite"]');
+  var availabilityCheckbox = catalogSidebar.querySelector('label[for="filter-availability"]');
+  var sortingButtons = catalogSidebar.querySelectorAll('input[name="sort"]~label');
+
+  var catalogSubmitButton = catalogSidebar.querySelector('.catalog__submit');
 
   var kindToForAttributeMap = {
     'Мороженое': 'filter-icecream',
@@ -30,40 +35,35 @@
     'availability': 'filter-availability'
   };
 
-  var filterInitialState = function () {
-    var typeFilters = catalogSidebar.querySelectorAll('[name="food-type"]');
-    typeFilters.forEach(function (it) {
-      it.checked = true;
-    });
-  };
-
-  var filterButtons = catalogSidebar.querySelectorAll('label[for^="filter-"]');
-
-  var filterStates = {
+  var foodTypeFlags = {
     'Мороженое': Math.pow(2, 0),
     'Газировка': Math.pow(2, 1),
     'Жевательная резинка': Math.pow(2, 2),
     'Мармелад': Math.pow(2, 3),
-    'Зефир': Math.pow(2, 4),
-    'Без сахара': Math.pow(2, 5),
-    'Вегетарианское': Math.pow(2, 6),
-    'Безглютеновое': Math.pow(2, 7),
-    'Только избранное': Math.pow(2, 8),
-    'В наличии': Math.pow(2, 9),
-    'Сначала популярные': Math.pow(2, 10),
-    'Сначала дорогие': Math.pow(2, 11),
-    'Сначала дешёвые': Math.pow(2, 12),
-    'По рейтингу': Math.pow(2, 13)
+    'Зефир': Math.pow(2, 4)
   };
 
-  var filterState = filterStates['Мороженое'] |
-      filterStates['Газировка'] |
-      filterStates['Жевательная резинка'] |
-      filterStates['Мармелад'] |
-      filterStates['Зефир'] |
-      filterStates['Сначала популярные'];
+  var defaultFilterState;
+  var filterState;
 
-  // console.log(window.catalog.goods);
+
+  var sortingMethod = {
+    'Сначала популярные': function () {
+      return;
+    },
+    'Сначала дорогие': function (a, b) {
+      return b.price - a.price;
+    },
+    'Сначала дешёвые': function (a, b) {
+      return (a.price - b.price);
+    },
+    'По рейтингу': function (a, b) {
+      if (a.rating.value === b.rating.value) {
+        return b.rating.number - a.rating.number;
+      }
+      return b.rating.value - a.rating.value;
+    }
+  };
 
   var resetCounters = function () {
     var counters = catalogSidebar.querySelectorAll('.input-btn__item-count');
@@ -71,6 +71,8 @@
       it.textContent = '(0)';
     });
     catalogSidebar.querySelector('.range__count').textContent = '(0)';
+    rangeBtnLeft.style.left = -BUTTON_WIDTH / 2 + 'px';
+    rangeBtnRight.style.left = RANGE_LENGTH - BUTTON_WIDTH / 2 + 'px';
   };
 
   var updateCounter = function (kind) {
@@ -85,7 +87,7 @@
     var rangeCount = catalogSidebar.querySelector('.range__count');
     var counterNumber = 0;
     window.catalog.goods.forEach(function (it) {
-      if (it.price >= currentMinPrice && it.price <= currentMaxPrice) {
+      if (it.price >= filterState.price.min && it.price <= filterState.price.max) {
         counterNumber++;
       }
     });
@@ -100,7 +102,7 @@
   };
 
 
-  var updateCounters = function () {
+  var initFilters = function () {
     var prices = window.catalog.goods.map(function (it) {
       return it.price;
     });
@@ -110,6 +112,24 @@
     maxPrice = prices.reduce(function (a, b) {
       return Math.max(a, b);
     });
+
+    defaultFilterState = {
+      foodType: 0,
+      foodProperty: {
+        'Без сахара': false,
+        'Вегетарианское': false,
+        'Безглютеновое': false
+      },
+      price: {
+        min: minPrice,
+        max: maxPrice
+      },
+      onlyFavorites: false,
+      inStock: false,
+      sorting: 'Сначала популярные'
+    };
+
+    filterState = JSON.parse(JSON.stringify(defaultFilterState));
 
     applyRangeBtnStyle();
 
@@ -130,7 +150,6 @@
         updateCounter('availability');
       }
       updatePriceCounter();
-      filterInitialState();
     });
   };
 
@@ -142,11 +161,11 @@
 
     rangeFillLine.style.left = rangeBtnLeft.offsetLeft + 'px';
     rangeFillLine.style.right = RANGE_LENGTH - rangeBtnRight.offsetLeft + 'px';
-    currentMinPrice = Math.round(priceRange / RANGE_LENGTH * leftX) + minPrice;
-    currentMaxPrice = Math.round(priceRange / RANGE_LENGTH * rightX) + minPrice;
+    filterState.price.min = Math.round(priceRange / RANGE_LENGTH * leftX) + minPrice;
+    filterState.price.max = Math.round(priceRange / RANGE_LENGTH * rightX) + minPrice;
 
-    rangePriceMin.textContent = currentMinPrice;
-    rangePriceMax.textContent = currentMaxPrice;
+    rangePriceMin.textContent = filterState.price.min;
+    rangePriceMax.textContent = filterState.price.max;
   };
 
 
@@ -167,11 +186,12 @@
       }
       evt.target.style.left = x + 'px';
       applyRangeBtnStyle();
+      updatePriceCounter();
     };
 
     var mouseUpHandler = function (upEvt) {
       upEvt.preventDefault();
-      updatePriceCounter();
+      window.catalog.showCatalog();
       document.removeEventListener('mousemove', mouseMoveHandler);
       document.removeEventListener('mouseup', mouseUpHandler);
     };
@@ -187,40 +207,117 @@
     moveRangeBtn(evt, rangeBtnLeft.offsetLeft, RANGE_LENGTH - BUTTON_WIDTH / 2);
   });
 
-  var filterHandler = function (evt) {
+  var foodTypeHandler = function (evt) {
     var kind = evt.target.textContent;
-    filterState = filterState ^ filterStates[kind];
-    if (kind === 'Только избранное') {
-      filterState = filterState & ~filterStates['В наличии'];
-    }
-    if (kind === 'В наличии') {
-      filterState = filterState & ~filterStates['Только избранное'];
-    }
-    if (kind === 'Сначала популярные') {
-      filterState = filterState | filterStates['Сначала популярные'];
-      filterState = filterState & ~filterStates['Сначала дорогие'];
-
-    }
-    if (kind === 'Сначала дорогие') {
-      filterState = filterState | filterStates['Сначала дорогие'];
-      filterState = filterState & ~filterStates['Сначала популярные'];
-    }
-    window.catalog.showCatalog(filterState);
+    filterState.foodType = filterState.foodType ^ foodTypeFlags[kind];
+    window.catalog.showCatalog();
   };
 
-  filterButtons.forEach(function (it) {
+  var foodPropertyHandler = function (evt) {
+    var property = evt.target.textContent;
+    filterState.foodProperty[property] = !filterState.foodProperty[property];
+    window.catalog.showCatalog();
+  };
+
+  foodTypeCheckboxes.forEach(function (it) {
     it.addEventListener('click', function (evt) {
-      filterHandler(evt);
+      foodTypeHandler(evt);
     });
   });
+
+  foodPropertyCheckboxes.forEach(function (it) {
+    it.addEventListener('click', function (evt) {
+      foodPropertyHandler(evt);
+    });
+  });
+
+  onlyFavoritesCheckbox.addEventListener('click', function () {
+    filterState.onlyFavorites = !filterState.onlyFavorites;
+    filterState.availability = false;
+    catalogSidebar.querySelector('#filter-availability').checked = false;
+    window.catalog.showCatalog();
+  });
+
+  availabilityCheckbox.addEventListener('click', function () {
+    filterState.availability = !filterState.availability;
+    filterState.favorites = false;
+    catalogSidebar.querySelector('#filter-favorite').checked = false;
+    window.catalog.showCatalog();
+  });
+
+  sortingButtons.forEach(function (it) {
+    it.addEventListener('click', function (evt) {
+      filterState.sorting = evt.target.textContent;
+      window.catalog.showCatalog();
+    });
+  });
+
+  catalogSubmitButton.addEventListener('click', function (evt) {
+    evt.preventDefault();
+    filterState = JSON.parse(JSON.stringify(defaultFilterState));
+
+    rangeBtnLeft.style.left = -BUTTON_WIDTH / 2 + 'px';
+    rangeBtnRight.style.left = RANGE_LENGTH - BUTTON_WIDTH / 2 + 'px';
+    updatePriceCounter();
+    applyRangeBtnStyle();
+
+    catalogSidebar.querySelectorAll('.input-btn__input--checkbox').forEach(function (it) {
+      it.checked = false;
+    });
+    catalogSidebar.querySelector('#filter-popular').checked = true;
+
+    window.catalog.showCatalog();
+  });
+
+  var applyFilter = function (goods) {
+
+    if (filterState.onlyFavorites) {
+      var filtered = goods.filter(function (it) {
+        return it.favorites;
+      });
+      return filtered.sort(sortingMethod[filterState.sorting]);
+    }
+
+    if (filterState.availability) {
+      filtered = goods.filter(function (it) {
+        return it.amount > 0;
+      });
+      return filtered.sort(sortingMethod[filterState.sorting]);
+    }
+
+    filtered = goods.filter(function (it) {
+      return filterState.foodType & foodTypeFlags[it.kind] || !filterState.foodType;
+    });
+
+    if (filterState.foodProperty['Без сахара']) {
+      filtered = filtered.filter(function (it) {
+        return !it.nutritionFacts.sugar;
+      });
+    }
+    if (filterState.foodProperty['Вегетарианское']) {
+      filtered = filtered.filter(function (it) {
+        return it.nutritionFacts.vegetarian;
+      });
+    }
+    if (filterState.foodProperty['Безглютеновое']) {
+      filtered = filtered.filter(function (it) {
+        return !it.nutritionFacts.gluten;
+      });
+    }
+
+    filtered = filtered.filter(function (it) {
+      return it.price >= filterState.price.min && it.price <= filterState.price.max;
+    });
+
+    return filtered.sort(sortingMethod[filterState.sorting]);
+  };
 
 
   window.filter = {
     resetCounters: resetCounters,
-    updateCounters: updateCounters,
+    initFilters: initFilters,
     updateFavoritesCounter: updateFavoritesCounter,
-    filterStates: filterStates,
-    filterState: filterState
+    applyFilter: applyFilter
   };
 
 })();

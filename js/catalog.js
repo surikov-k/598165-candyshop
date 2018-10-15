@@ -4,16 +4,16 @@
   var orders = [];
   var goods = [];
 
-
-  window.backend.load(
+  window.backend('GET',
       function (data) {
-        for (var i = 0; i < data.length; i++) {
-          goods.push(data[i]);
+        data.forEach(function (it, i) {
+          goods.push(it);
           goods[i].favorites = false;
-        }
-        showCatalog(window.filter.filterState);
+        });
+
         window.filter.resetCounters();
-        window.filter.updateCounters();
+        window.filter.initFilters();
+        showCatalog();
       },
       function (error) {
         window.modal.showErrorModal(error);
@@ -21,9 +21,16 @@
 
   var orderCardsWrapper = document.querySelector('.goods__cards');
 
+  var starsMap = {
+    1: 'stars__rating--one',
+    2: 'stars__rating--two',
+    3: 'stars__rating--three',
+    4: 'stars__rating--four',
+    5: 'stars__rating--five'
+  };
+
   var createCatalogCard = function (item) {
     var card = catalogCardTemplate.cloneNode(true);
-    // card.dataset.id = item.id;
 
     applyCatalogCardStyle(card, item.amount);
 
@@ -41,23 +48,7 @@
     var starsRating = card.querySelector('.stars__rating');
     starsRating.classList.remove('stars__rating--five');
     starsRating.textContent = 'Рейтинг: ' + item.rating.value;
-    switch (item.rating.value) {
-      case 1:
-        starsRating.classList.add('stars__rating--one');
-        break;
-      case 2:
-        starsRating.classList.add('stars__rating--two');
-        break;
-      case 3:
-        starsRating.classList.add('stars__rating--three');
-        break;
-      case 4:
-        starsRating.classList.add('stars__rating--four');
-        break;
-      case 5:
-        starsRating.classList.add('stars__rating--five');
-        break;
-    }
+    starsRating.classList.add(starsMap[item.rating.value]);
 
     card.querySelector('.star__count').textContent = '(' + item.rating.number + ')';
 
@@ -162,12 +153,11 @@
 
     applyCatalogCardStyle(catalogCard, catalogItem.amount);
 
-    for (var i = 0; i < orders.length; i++) {
-      if (orders[i].name === cardTitle) {
+    orders.forEach(function (it, i) {
+      if (it.name === cardTitle) {
         orders.splice(i, 1);
-        break;
       }
-    }
+    });
 
     document.querySelector('.goods__cards').removeChild(card);
 
@@ -191,13 +181,13 @@
 
   var getCatalogCardByName = function (name) {
     var catalogCards = document.querySelectorAll('.catalog__card');
-    for (var i = 0; i < catalogCards.length; i++) {
-      var catalogCardTitle = catalogCards[i].querySelector('.card__title').textContent;
+    var card;
+    catalogCards.forEach(function (it) {
+      var catalogCardTitle = it.querySelector('.card__title').textContent;
       if (catalogCardTitle === name) {
-        var card = catalogCards[i];
-        break;
+        card = it;
       }
-    }
+    });
     return card;
   };
 
@@ -253,28 +243,30 @@
 
   var getOrderCardByName = function (name) {
     var orderCards = orderCardsWrapper.querySelectorAll('.card-order');
-
-    for (var i = 0; i < orderCards.length; i++) {
-      var orderCardTitle = orderCards[i].querySelector('.card-order__title').textContent;
+    var card;
+    orderCards.forEach(function (it) {
+      var orderCardTitle = it.querySelector('.card-order__title').textContent;
       if (orderCardTitle === name) {
-        var card = orderCards[i];
-        break;
+        card = it;
       }
-    }
+    });
+
     return card;
   };
 
 
   var addCards = function (createCard, goodsArray) {
     var fragment = document.createDocumentFragment();
-    for (var i = 0; i < goodsArray.length; i++) {
+    goodsArray.forEach(function (it, i) {
       fragment.appendChild(createCard(goodsArray[i]));
-    }
+    });
     return fragment;
   };
 
   var catalogCardTemplate = document.querySelector('#card').content.querySelector('.catalog__card');
   var orderCardTemplate = document.querySelector('#card-order').content.querySelector('.goods_card');
+
+  var catalogEmptyTemplate = document.querySelector('#empty-filters').content.querySelector('.catalog__empty-filter');
 
 
   var catalogCards = document.querySelector('.catalog__cards');
@@ -285,60 +277,16 @@
     }
   };
 
-  var showCatalog = function (filterState) {
+  var showCatalog = function () {
     clearCatalog();
-    var goodsFiltered = [];
-
-    goods.forEach(function (it) {
-      if (filterState & window.filter.filterStates[it.kind]) {
-        goodsFiltered.push(it);
-      }
-    });
-
-    if (filterState & window.filter.filterStates['Без сахара']) {
-      goodsFiltered = goodsFiltered.filter(function (it) {
-        return !it.nutritionFacts.sugar;
-      });
+    var goodsSorted = window.filter.applyFilter(goods);
+    if (goodsSorted.length) {
+      var catalogCardsFragment = addCards(createCatalogCard, goodsSorted);
+      catalogCards.appendChild(catalogCardsFragment);
+    } else {
+      var catalogEmpty = catalogEmptyTemplate.cloneNode(true);
+      catalogCards.appendChild(catalogEmpty);
     }
-    if (filterState & window.filter.filterStates['Вегетарианское']) {
-      goodsFiltered = goodsFiltered.filter(function (it) {
-        return it.nutritionFacts.vegetarian;
-      });
-    }
-    if (filterState & window.filter.filterStates['Безглютеновое']) {
-      goodsFiltered = goodsFiltered.filter(function (it) {
-        return !it.nutritionFacts.gluten;
-      });
-    }
-    if (filterState & window.filter.filterStates['Только избранное']) {
-      document.querySelector('#filter-availability').checked = false;
-
-      goodsFiltered = goods.filter(function (it) {
-        return it.favorites === true;
-      });
-    }
-    if (filterState & window.filter.filterStates['В наличии']) {
-      document.querySelector('#filter-favorite').checked = false;
-      goodsFiltered = goods.filter(function (it) {
-        return it.amount > 0;
-      });
-    }
-
-    var goodsSorted = goodsFiltered.slice();
-
-    if (filterState & window.filter.filterStates['Сначала популярные']) {
-      goodsSorted.sort(function (a, b) {
-        return b.rating.number - a.rating.number;
-      });
-    }
-    if (filterState & window.filter.filterStates['Сначала дорогие']) {
-      goodsSorted.sort(function (a, b) {
-        return b.price - a.price;
-      });
-    }
-
-    var catalogCardsFragment = addCards(createCatalogCard, goodsSorted);
-    catalogCards.appendChild(catalogCardsFragment);
   };
 
 

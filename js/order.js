@@ -102,7 +102,7 @@
     var nCheck = 0;
     var nDigit = 0;
     var bEven = false;
-    // value = value.replace(/\D/g, '');
+
     for (var n = value.length - 1; n >= 0; n--) {
       var cDigit = value.charAt(n);
       nDigit = parseInt(cDigit, 10);
@@ -179,13 +179,13 @@
   };
 
   deliverStoreList.addEventListener('click', function (evt) {
-    evt.preventDefault();
     selectStore(evt);
   });
 
 
   buyForm.addEventListener('submit', function (evt) {
-    window.backend.send(new FormData(buyForm),
+    window.order.data = new FormData(buyForm);
+    window.backend('POST',
         function () {
           window.modal.showSuccessModal();
           window.catalog.emptyOrder();
